@@ -1,5 +1,11 @@
 # Argo APId Helper
 
+[![Docker Repository on Quay](https://quay.io/repository/gkarthics/apid-helper/status "Docker Repository on Quay")](https://quay.io/repository/gkarthics/apid-helper)
+![Release](https://img.shields.io/github/tag-date/gkarthiks/argo-apid-helper.svg?color=Orange&label=Latest%20Release)
+![language](https://img.shields.io/badge/Language-go-blue.svg)
+![License](https://img.shields.io/github/license/gkarthiks/argo-apid-helper.svg)
+
+
 *API Deprecation Helper* aims to provide an agentless way of listing all the deprecated APIs in the Kubernetes Cluster tha ismanaged by ArgoCD.
 
 This helper service utilizes the *Kubernetes Secrets* created by ArgoCD to connect to the clusters. By which it gains the same privilege to read all the APIs and the workloads that are deployed on the associated deprecated APIs in that cluster. Although using the same privileges, it only reads from the cluster.
@@ -32,3 +38,7 @@ This is to be implemented feature.
 Responds back with the array of clusters, its corresponding deprecation api and workloads that are deployed against that corresponding apis.
 
 Note: This might be a time-consuming task especially if your ArgoCD manages numerous clusters.
+
+### Deployment
+
+This service is available as a container image for easy deployment at quay [here](https://quay.io/repository/gkarthics/apid-helper).
