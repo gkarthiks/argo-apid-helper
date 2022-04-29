@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/gkarthiks/argo-apid-helper/config"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
+	"strings"
 )
 
 type ClusterCollector struct {
@@ -107,6 +109,9 @@ func (c *ClusterCollector) Get() ([]map[string]interface{}, error) {
 		rs, err := ri.List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			log.Debug().Msgf("Failed to retrieve: %s: %s", g, err)
+			if strings.Contains(err.Error(), "?timeout") {
+				return nil, errors.New("couldn't connect to the cluster; timeout error")
+			}
 			continue
 		}
 
