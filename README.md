@@ -38,3 +38,7 @@ This is to be implemented feature.
 Responds back with the array of clusters, its corresponding deprecation api and workloads that are deployed against that corresponding apis.
 
 Note: This might be a time-consuming task especially if your ArgoCD manages numerous clusters.
+
+### Deployment
+
+This service is available as a container image for easy deployment at quay [here](https://quay.io/repository/gkarthics/apid-helper).
