@@ -85,7 +85,12 @@ func ListAPIDeprecations(c *gin.Context) {
 			config.Log.Debugf("%d ) \t %v", idx, clusterName.Name)
 		}
 	}
+	type DeprecationResults struct {
+		ClusterName string      `json:"clusterName"`
+		Result      interface{} `json:"result"`
+	}
 
+	var deprecationResults []DeprecationResults
 	for i := 0; i < len(clusterList.Items); i++ {
 		config.Log.Infof("starting to work on the %s cluster", clusterList.Items[i].Name)
 
@@ -94,6 +99,13 @@ func ListAPIDeprecations(c *gin.Context) {
 		initCollectors := collector.InitCollectors(collectorConfig, clusterList.Items[i].RawRestConfig())
 
 		collectorConfig.TargetVersion, err = getServerVersion(collectorConfig.TargetVersion, initCollectors)
+		if err != nil {
+			deprecationResults = append(deprecationResults, DeprecationResults{
+				ClusterName: clusterList.Items[i].Name,
+				Result:      err.Error(),
+			})
+			continue
+		}
 		if collectorConfig.TargetVersion != nil {
 			config.Log.Infof("Target K8s version is %s", collectorConfig.TargetVersion.String())
 		}
@@ -126,11 +138,14 @@ func ListAPIDeprecations(c *gin.Context) {
 			config.Log.Fatalf("name: Rego; Failed to filter results: %v", err)
 		}
 
-		c.JSON(200, gin.H{
-			"clusterName": clusterList.Items[i].Name,
-			"data":        results,
+		deprecationResults = append(deprecationResults, DeprecationResults{
+			ClusterName: clusterList.Items[i].Name,
+			Result:      results,
 		})
 	}
+	c.JSON(200, gin.H{
+		"deprecationResults": deprecationResults,
+	})
 }
 
 // secretToCluster converts a secret into a Cluster object
