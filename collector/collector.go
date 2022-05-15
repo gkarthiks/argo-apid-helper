@@ -2,7 +2,7 @@ package collector
 
 import (
 	"github.com/doitintl/kube-no-trouble/pkg/judge"
-	"github.com/gkarthiks/argo-apid-helper/config"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/rest"
 )
 
@@ -40,7 +40,7 @@ func InitCollectors(config *Config, restConfig *rest.Config) []Collector {
 
 func storeCollector(collector Collector, err error, collectors []Collector) []Collector {
 	if err != nil {
-		config.Log.Errorf("Failed to initialize collector: %v", collector)
+		logrus.Errorf("Failed to initialize collector: %v", collector)
 	} else {
 		collectors = append(collectors, collector)
 	}

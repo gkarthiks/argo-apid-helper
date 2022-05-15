@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
 	argoAppV1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/doitintl/kube-no-trouble/pkg/judge"
 	"github.com/doitintl/kube-no-trouble/pkg/printer"
@@ -12,11 +11,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gkarthiks/argo-apid-helper/collector"
 	"github.com/gkarthiks/argo-apid-helper/config"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -30,30 +31,39 @@ func HealthZ(c *gin.Context) {
 	})
 }
 
+// GetArgoClusters will list the name of all the Kubernetes Clusters
+// that are managed by ArgoCD GitOps engine
 func GetArgoClusters(c *gin.Context) {
-	c.JSON(501, gin.H{
-		"message": "Not Implemented",
+	logrus.Info("listing the clusters managed by ArgoCD")
+	clusterNamesList, err := PopulateArgoClusterNames(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Sprintf("error occured while populating the list: %v", err.Error()),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"totalClusters": clusterNamesList.Len(),
+		"clusters":      clusterNamesList.List(),
 	})
 }
 
+// ListAPIDeprecations lists the api deprecations for all the clusters that are managed
+// by the ArgoCD
 func ListAPIDeprecations(c *gin.Context) {
-	config.Log.Info("listing the clusters managed by ArgoCD")
+	logrus.Info("listing the clusters managed by ArgoCD")
 
-	clusterSecretsList, err := config.K8s.Clientset.CoreV1().Secrets(config.ArgocdNamespace).List(context.Background(),
-		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+	clusterSecrets, err := PopulateArgoClusters(c)
 	if err != nil {
-		config.Log.Errorf("error occured while listing the argocd secrets: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Sprintf("error occured while populating the list of argo clusters: %v", err.Error()),
+		})
 	}
-	if clusterSecretsList == nil {
-		config.Log.Errorln("no cluster secrets found that are managed by ArgoCD")
-	}
-	config.Log.Debugf("total cluster secrets found that are managed by argocd: %v", len(clusterSecretsList.Items))
 
-	clusterSecrets := clusterSecretsList.Items
+	logrus.Debugf("total number of clusters found that are managed by ArgoCD: %d", len(clusterSecrets))
 	if config.AppMode != config.AppModeProd {
-		config.Log.Debugln("Listing the secrets that are found as cluster secrets")
+		logrus.Debugln("Listing the secrets that are found as cluster secrets")
 		for _, sec := range clusterSecrets {
-			config.Log.Debugf("Secret Name: %v", sec.Name)
+			logrus.Debugf("Secret Name: %v", sec.Name)
 		}
 	}
 	clusterList := argoAppV1.ClusterList{
@@ -64,7 +74,7 @@ func ListAPIDeprecations(c *gin.Context) {
 	for i, clusterSecret := range clusterSecrets {
 		cluster, err := secretToCluster(&clusterSecret)
 		if err != nil || cluster == nil {
-			config.Log.Errorf("unable to convert cluster secret to cluster object '%s': %v", clusterSecret.Name, err)
+			logrus.Errorf("unable to convert cluster secret to cluster object '%s': %v", clusterSecret.Name, err)
 		}
 
 		clusterList.Items[i] = *cluster
@@ -73,79 +83,126 @@ func ListAPIDeprecations(c *gin.Context) {
 		}
 	}
 	if !hasInClusterCredentials {
-		localCluster := getLocalCluster(config.K8s.Clientset)
+		localCluster := getLocalCluster(config.KubeClient.Clientset)
 		if localCluster != nil {
 			clusterList.Items = append(clusterList.Items, *localCluster)
 		}
 	}
 
 	if config.AppMode != config.AppModeProd {
-		config.Log.Debugln("listing all the cluster names")
+		logrus.Debugln("listing all the cluster names")
 		for idx, clusterName := range clusterList.Items {
-			config.Log.Debugf("%d ) \t %v", idx, clusterName.Name)
+			logrus.Debugf("%d ) \t %v", idx, clusterName.Name)
 		}
 	}
-	type DeprecationResults struct {
-		ClusterName string      `json:"clusterName"`
-		Result      interface{} `json:"result"`
-	}
 
-	var deprecationResults []DeprecationResults
+	var deprecationResults []config.DeprecationResults
 	for i := 0; i < len(clusterList.Items); i++ {
-		config.Log.Infof("starting to work on the %s cluster", clusterList.Items[i].Name)
-
-		collectorConfig, _ := collector.NewCollectorConfig()
-		config.Log.Infoln("Initializing collectors and retrieving data")
-		initCollectors := collector.InitCollectors(collectorConfig, clusterList.Items[i].RawRestConfig())
-
-		collectorConfig.TargetVersion, err = getServerVersion(collectorConfig.TargetVersion, initCollectors)
-		if err != nil {
-			deprecationResults = append(deprecationResults, DeprecationResults{
-				ClusterName: clusterList.Items[i].Name,
-				Result:      err.Error(),
-			})
-			continue
-		}
-		if collectorConfig.TargetVersion != nil {
-			config.Log.Infof("Target K8s version is %s", collectorConfig.TargetVersion.String())
-		}
-
-		collectors := getCollectors(initCollectors)
-
-		var additionalKinds []schema.GroupVersionKind
-		for _, ar := range collectorConfig.AdditionalKinds {
-			gvr, _ := schema.ParseKindArg(ar)
-			additionalKinds = append(additionalKinds, *gvr)
-		}
-
-		loadedRules, err := rules.FetchRegoRules(additionalKinds)
-		if err != nil {
-			config.Log.Fatalln("name: Rules; Failed to load rules")
-		}
-
-		judge, err := judge.NewRegoJudge(&judge.RegoOpts{}, loadedRules)
-		if err != nil {
-			config.Log.Fatalf("name: Rego; Failed to initialize decision engine: %v", err)
-		}
-
-		results, err := judge.Eval(collectors)
-		if err != nil {
-			config.Log.Fatalf("name: Rego; Failed to evaluate input: %v", err)
-		}
-
-		results, err = printer.FilterNonRelevantResults(results, collectorConfig.TargetVersion)
-		if err != nil {
-			config.Log.Fatalf("name: Rego; Failed to filter results: %v", err)
-		}
-
-		deprecationResults = append(deprecationResults, DeprecationResults{
-			ClusterName: clusterList.Items[i].Name,
-			Result:      results,
-		})
+		deprecationResult := getDeprecationForCluster(c, clusterList.Items[i])
+		deprecationResults = append(deprecationResults, *deprecationResult)
 	}
 	c.JSON(200, gin.H{
 		"deprecationResults": deprecationResults,
 	})
+}
+
+// getDeprecationForCluster works on the given cluster and returns the list of
+// API deprectation and associated workloads deployed against it
+func getDeprecationForCluster(ctx context.Context, cluster argoAppV1.Cluster) *config.DeprecationResults {
+	logrus.Infof("starting to work on the %s cluster", cluster.Name)
+	var err error
+	collectorConfig, _ := collector.NewCollectorConfig()
+	logrus.Infoln("Initializing collectors and retrieving data")
+	initCollectors := collector.InitCollectors(collectorConfig, cluster.RawRestConfig())
+
+	collectorConfig.TargetVersion, err = getServerVersion(collectorConfig.TargetVersion, initCollectors)
+	// If there's an error in communication with the cluster, return error for results
+	// against the cluster name
+	if err != nil {
+		logrus.Errorf("error occured while getting the deprecation result for %s cluster: %v", cluster.Name, err.Error())
+		return &config.DeprecationResults{
+			ClusterName: cluster.Name,
+			Result:      err.Error(),
+		}
+	}
+
+	if collectorConfig.TargetVersion != nil {
+		logrus.Infof("Target K8s version is %s", collectorConfig.TargetVersion.String())
+	}
+
+	collectors := getCollectors(initCollectors)
+
+	var additionalKinds []schema.GroupVersionKind
+	for _, ar := range collectorConfig.AdditionalKinds {
+		gvr, _ := schema.ParseKindArg(ar)
+		additionalKinds = append(additionalKinds, *gvr)
+	}
+
+	loadedRules, err := rules.FetchRegoRules(additionalKinds)
+	if err != nil {
+		logrus.Fatalln("name: Rules; Failed to load rules")
+	}
+
+	judge, err := judge.NewRegoJudge(&judge.RegoOpts{}, loadedRules)
+	if err != nil {
+		logrus.Fatalf("name: Rego; Failed to initialize decision engine: %v", err)
+	}
+
+	results, err := judge.Eval(collectors)
+	if err != nil {
+		logrus.Fatalf("name: Rego; Failed to evaluate input: %v", err)
+	}
+
+	results, err = printer.FilterNonRelevantResults(results, collectorConfig.TargetVersion)
+	if err != nil {
+		logrus.Fatalf("name: Rego; Failed to filter results: %v", err)
+	}
+
+	return &config.DeprecationResults{
+		ClusterName: cluster.Name,
+		Result:      results,
+	}
+}
+
+// GetTargetClusterDeprecations will get the list of deprecations and the workloads
+// against those deprecated workloads on a targeted cluster
+func GetTargetClusterDeprecations(c *gin.Context) {
+	logrus.Info("processing deprecations for the targeted cluster")
+	targetCluster := c.Param("clusterName")
+	logrus.Debugf("targeting the cluster: %s and checking if its a cluster managed by argocd ", targetCluster)
+	var deprecationResult *config.DeprecationResults
+	if config.ArgoManagedClusterNames.Has(targetCluster) {
+		logrus.Debugf("%s is a valid argocd managed cluster and proceeding with the deprecation list processing", targetCluster)
+		deprecationResult = proccedWithDeprecation(c, targetCluster)
+	} else if PopulateArgoClusterNames(c); config.ArgoManagedClusterNames.Has(targetCluster) {
+		logrus.Debugf("%s was found after refreshing the list of ArgoCD pre-populated cluster names", targetCluster)
+		deprecationResult = proccedWithDeprecation(c, targetCluster)
+	} else {
+		logrus.Errorf("%s not found from the list cluster managed by ArgoCD; It's not a valid cluster managed by ArgoCD", targetCluster)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("%s not found from the list cluster managed by ArgoCD; It's not a valid cluster managed by ArgoCD", targetCluster),
+		})
+	}
+	logrus.Debugf("returning the resultant data for %s cluster", targetCluster)
+	c.JSON(http.StatusOK, gin.H{
+		"clusterName": deprecationResult.ClusterName,
+		"results":     deprecationResult.Result,
+	})
+
+}
+
+func proccedWithDeprecation(ctx context.Context, clusterName string) *config.DeprecationResults {
+	logrus.Debugf("proceeding with the deprecation analysis for the target cluster: %s", clusterName)
+	targetClusterSecret := config.ArgoClusterNameToSecretMap[clusterName]
+	cluster, err := secretToCluster(&targetClusterSecret)
+	if err != nil || cluster == nil {
+		logrus.Errorf("unable to convert cluster secret to cluster object '%s': %v", targetClusterSecret.Name, err)
+		return &config.DeprecationResults{
+			ClusterName: clusterName,
+			Result:      fmt.Errorf("unable to convert cluster secret to cluster object '%s': %v", targetClusterSecret.Name, err),
+		}
+	}
+	return getDeprecationForCluster(ctx, *cluster)
 }
 
 // secretToCluster converts a secret into a Cluster object
@@ -168,7 +225,7 @@ func secretToCluster(s *corev1.Secret) (*argoAppV1.Cluster, error) {
 	if v, found := s.Annotations[argoAppV1.AnnotationKeyRefresh]; found {
 		requestedAt, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			config.Log.Warnf("Error while parsing date in cluster secret '%s': %v", s.Name, err)
+			logrus.Warnf("Error while parsing date in cluster secret '%s': %v", s.Name, err)
 		} else {
 			refreshRequestedAt = &metav1.Time{Time: requestedAt}
 		}
@@ -176,7 +233,7 @@ func secretToCluster(s *corev1.Secret) (*argoAppV1.Cluster, error) {
 	var shard *int64
 	if shardStr := s.Data["shard"]; shardStr != nil {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
-			config.Log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
+			logrus.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
 			shard = pointer.Int64Ptr(int64(val))
 		}
@@ -232,10 +289,10 @@ func getCollectors(collectors []collector.Collector) []map[string]interface{} {
 	for _, c := range collectors {
 		rs, err := c.Get()
 		if err != nil {
-			config.Log.Errorf("collector name: %v; Failed to retrieve data from collector: %v", c.Name(), err)
+			logrus.Errorf("collector name: %v; Failed to retrieve data from collector: %v", c.Name(), err)
 		} else {
 			inputs = append(inputs, rs...)
-			config.Log.Infof("collector name: %v; Retrieved %d resources from collector", c.Name(), len(rs))
+			logrus.Infof("collector name: %v; Retrieved %d resources from collector", c.Name(), len(rs))
 		}
 	}
 	return inputs

@@ -13,30 +13,21 @@ import (
 // Uses the environment variable to determine the mode of starting the logger and gin router.
 // This can't be dynamically overridden.
 func InitializeLogger() {
-	Log = logrus.New()
+	logrus.New()
 
 	if AppMode == "production" {
 		gin.SetMode(gin.ReleaseMode)
-		Log.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: "2006-01-02 15:04:05",
-		})
-		// Global setting is required because of the discover-k8s module
 		logrus.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02 15:04:05",
 		})
-		Log.SetLevel(logrus.InfoLevel)
+		logrus.SetLevel(logrus.InfoLevel)
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	} else {
-		Log.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: "2006-01-02 15:04:05",
-			PrettyPrint:     true,
-		})
-		// Global setting is required because of the discover-k8s module
 		logrus.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02 15:04:05",
 			PrettyPrint:     true,
 		})
-		Log.SetLevel(logrus.DebugLevel)
+		logrus.SetLevel(logrus.DebugLevel)
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 }
