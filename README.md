@@ -47,4 +47,4 @@ Note: This might be a time-consuming task especially if your ArgoCD manages nume
 
 This service is available as a container image for easy deployment at quay [here](https://quay.io/repository/gkarthics/apid-helper).
 
-The helm chart for this deployment is available @ [gkarthiks.github.io/helm-charts](https://gkarthiks.github.io/helm-charts).
+The helm chart for this deployment is available in ArtifactHUB, follow the simple steps by clicking [ArtifactHUB ⎈](https://artifacthub.io/packages/helm/gkarthiks/apid-helper?modal=install).
