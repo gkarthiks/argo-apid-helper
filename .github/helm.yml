@@ -1,0 +1,36 @@
+name: Helm Chart
+
+on:
+  push:
+    branches: [ "*" ]
+    tags: [ "helm-v*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: azure/setup-helm@v1
+        with:
+          version: 3.3.4
+      - name: Linting Chart
+        run: helm lint ./charts/apid-helper
+  release:
+    if: startsWith(github.ref, 'refs/tags/helm-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Publish Helm chart
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          token: ${{ secrets.BOT_GITHUB_TOKEN }}
+          charts_dir: charts
+          charts_url: https://gkarthiks.github.io/helm-charts
+          owner: gkarthiks
+          repository: helm-charts
+          branch: gh-pages
+          target_dir: .
+          commit_username: gkarthiks
+          commit_email: github.gkarthiks@gmail.com
