@@ -7,12 +7,12 @@ replicaCount: 1
 image:
   repository: quay.io/gkarthics/apid-helper
   pullPolicy: IfNotPresent
-  tag: "v0.1.0"
+  tag: "v0.2.0"
 
 server:
   listenPort: 80
   appMode: debug
-  argocdNamespace: akp-gitops
+  argocdNamespace: argocd
   test: false
 
 imagePullSecrets: []
@@ -72,7 +72,7 @@ resources:
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 100
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
