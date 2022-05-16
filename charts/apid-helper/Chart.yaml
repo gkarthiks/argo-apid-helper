@@ -2,5 +2,16 @@ apiVersion: v2
 name: apid-helper
 description: A Helm chart for Kubernetes API Deprecation Helper for Kubernetes that are managed by ArgoCD
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "v0.2.0"
+annotations:
+  artifacthub.io/images: |
+    - name: apid-helper
+      image: quay.io/gkarthics/apid-helper:v0.2.0
+  artifacthub.io/license: MIT License
+  artifacthub.io/links: |
+    - name: GitHub
+      url: https://github.com/gkarthiks/argo-apid-helper
+  artifacthub.io/maintainers: |
+    - name: Karthikeyan Govindaraj
+      email: github.gkarthiks@gmail.com
