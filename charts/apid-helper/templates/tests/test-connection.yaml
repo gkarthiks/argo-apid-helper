@@ -1,0 +1,17 @@
+{{- if .Values.server.test -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "argo-apid-helper.fullname" . }}-test-connection"
+  labels:
+    {{- include "argo-apid-helper.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "argo-apid-helper.fullname" . }}:{{ .Values.service.port }}/v1/ping']
+  restartPolicy: Never
+{{- end }}
