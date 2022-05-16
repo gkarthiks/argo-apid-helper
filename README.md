@@ -19,7 +19,7 @@ The server will be started on `:8080` unless configured otherwise. There are a f
 | S.No | Env Variable | Default Value | Desc |
 |--|--|--|--|
 | 01| APP_MODE | `production` | When set in `debug` mode, provides the verbosity|
-| 02 | LISTEN_PORT | `8080` | Default server startup port |
+| 02 | LISTEN_PORT | `80` | Default server startup port |
 |03|  ARGOCD_NAMESPACE | `argocd` | ArgoCD Namespace where the service can access the cluster-secrets|
 
 ### Available APIs
@@ -32,7 +32,11 @@ Responds with the `pong` message and used for bare minimal health check in conta
 Will utilize the ArgoCD cluster-secrets and list the name and address of the clusters that are managed by ArgoCD; which in-turn are accessible by this helper service
 
 #### /v1alpha/{cluster-name}/deprecations
-This is to be implemented feature.
+The `/v1alpha/{cluster-name}/deprecations` is a targeted cluster query to get the list of deprectaed APIs and the resources deployed against those deperecated APIs on the provided cluster. 
+
+This validates if the given cluster is managed by ArgoCD and starts the analysis. This API is very much recommended querying a large number of clusters. Since using the `/v1alpha/deprecations` api will takes longer time which might result in request time out error in some cases.
+
+Also, the repetative query on this api is guarenteed not to query the ArgoCD secrets for every request until the asked cluster name is not found in-memory.
 
 #### /v1alpha/deprecations
 Responds back with the array of clusters, its corresponding deprecation api and workloads that are deployed against that corresponding apis.
@@ -42,3 +46,5 @@ Note: This might be a time-consuming task especially if your ArgoCD manages nume
 ### Deployment
 
 This service is available as a container image for easy deployment at quay [here](https://quay.io/repository/gkarthics/apid-helper).
+
+The helm chart for this deployment is available @ [gkarthiks.github.io/helm-charts](https://gkarthiks.github.io/helm-charts).
