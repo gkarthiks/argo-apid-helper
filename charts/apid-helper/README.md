@@ -2,7 +2,7 @@
 [apid-helper](https://github.com/gkarthiks/argo-apid-helper) is a service that helps in finding the deprecated Kubernetes API and the workloads deployed in those deprecated APIs for the clusters that are managed by ArgoCD in an agentless way across all the clusters.
 
 
-![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.2.0](https://img.shields.io/badge/AppVersion-v0.2.0-informational?style=flat-square)
+![Version: 0.1.3](https://img.shields.io/badge/Version-0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.2.1](https://img.shields.io/badge/AppVersion-v0.2.1-informational?style=flat-square)
 
 A Helm chart for Kubernetes API Deprecation Helper for Kubernetes that are managed by ArgoCD
 

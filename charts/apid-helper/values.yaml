@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: quay.io/gkarthics/apid-helper
   pullPolicy: IfNotPresent
-  tag: "v0.2.0"
+  tag: "v0.2.1"
 
 server:
   listenPort: 80
