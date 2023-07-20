@@ -3,7 +3,7 @@ RUN mkdir /apid-helper
 COPY . /apid-helper
 WORKDIR /apid-helper
 ENV GO111MODULE=on
-RUN make apid-build
+RUN make apid-build-linux
 
 FROM alpine:3.18.2
 COPY --from=builder /apid-helper/dist/apid ./bin
