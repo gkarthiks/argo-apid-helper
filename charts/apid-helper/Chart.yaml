@@ -3,11 +3,11 @@ name: apid-helper
 description: A Helm chart for Kubernetes API Deprecation Helper for Kubernetes that are managed by ArgoCD
 type: application
 version: 0.1.3
-appVersion: "v0.2.1"
+appVersion: "v0.2.2"
 annotations:
   artifacthub.io/images: |
     - name: apid-helper
-      image: quay.io/gkarthics/apid-helper:v0.2.1
+      image: quay.io/gkarthics/apid-helper:v0.2.2
   artifacthub.io/license: MIT License
   artifacthub.io/links: |
     - name: GitHub
