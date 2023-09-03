@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/github/license/gkarthiks/argo-apid-helper.svg)
 
 
-*API Deprecation Helper* aims to provide an agentless way of listing all the deprecated APIs in the Kubernetes Cluster tha ismanaged by ArgoCD.
+*API Deprecation Helper* aims to provide an agent less way of listing all the deprecated APIs in the Kubernetes Cluster that is managed by ArgoCD.
 
 This helper service utilizes the *Kubernetes Secrets* created by ArgoCD to connect to the clusters. By which it gains the same privilege to read all the APIs and the workloads that are deployed on the associated deprecated APIs in that cluster. Although using the same privileges, it only reads from the cluster.
 
@@ -32,11 +32,11 @@ Responds with the `pong` message and used for bare minimal health check in conta
 Will utilize the ArgoCD cluster-secrets and list the name and address of the clusters that are managed by ArgoCD; which in-turn are accessible by this helper service
 
 #### /v1alpha/{cluster-name}/deprecations
-The `/v1alpha/{cluster-name}/deprecations` is a targeted cluster query to get the list of deprectaed APIs and the resources deployed against those deperecated APIs on the provided cluster. 
+The `/v1alpha/{cluster-name}/deprecations` is a targeted cluster query to get the list of deprecated APIs and the resources deployed against those deprecated APIs on the provided cluster. 
 
 This validates if the given cluster is managed by ArgoCD and starts the analysis. This API is very much recommended querying a large number of clusters. Since using the `/v1alpha/deprecations` api will takes longer time which might result in request time out error in some cases.
 
-Also, the repetative query on this api is guarenteed not to query the ArgoCD secrets for every request until the asked cluster name is not found in-memory.
+Also, the repetitive query on this api is guaranteed not to query the ArgoCD secrets for every request until the asked cluster name is not found in-memory.
 
 #### /v1alpha/deprecations
 Responds back with the array of clusters, its corresponding deprecation api and workloads that are deployed against that corresponding apis.

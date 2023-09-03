@@ -4,10 +4,10 @@ go 1.20
 
 require (
 	github.com/argoproj/argo-cd/v2 v2.7.8
-	github.com/doitintl/kube-no-trouble v0.0.0-20230505093647-df9a0174afa2
+	github.com/doitintl/kube-no-trouble v0.0.0-20230824092251-e506263e684a
 	github.com/gin-gonic/gin v1.9.1
 	github.com/gkarthiks/k8s-discovery v0.23.1
-	github.com/rs/zerolog v1.29.0
+	github.com/rs/zerolog v1.30.0
 	github.com/sirupsen/logrus v1.9.3
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
